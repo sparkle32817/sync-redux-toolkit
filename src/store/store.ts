@@ -1,10 +1,17 @@
 import { AnyAction, CombinedState, combineReducers, configureStore } from "@reduxjs/toolkit";
 import { HYDRATE } from "next-redux-wrapper";
 import thunk from "redux-thunk";
+import { persistReducer } from "redux-persist";
 import { useSelector, TypedUseSelectorHook, useDispatch } from "react-redux";
+import {
+  createStateSyncMiddleware,
+  initMessageListener,
+  // initStateWithPrevTab,
+} from "redux-state-sync";
 
 import { counterSlice } from "./reducers";
 import { CounterState } from "./reducers/counterSlice";
+import storage from "./storage";
 
 const combinedReducer = combineReducers({
   counter: counterSlice,
@@ -21,24 +28,26 @@ const reducer = (
       ...action.payload,
     };
     return nextState;
-  } else if (action.type == "authSlice/logout") {
-    // storage.removeItem("persist:root");
-    localStorage.clear();
-    return combinedReducer(initialRootState, action);
   } else {
     return combinedReducer(state, action);
   }
 };
 
+const persistConfig = {
+  key: "root",
+  storage,
+};
+
+const persistedReducer = persistReducer(persistConfig, reducer);
+
 export const store = configureStore({
-  reducer: reducer,
-  middleware: [thunk],
+  reducer: persistedReducer,
+  middleware: [thunk, createStateSyncMiddleware()],
   devTools: process.env.NODE_ENV !== "production",
 });
 
-const initialRootState = {
-  ...store.getState(),
-};
+// initStateWithPrevTab(store);
+initMessageListener(store);
 
 export type RootState = ReturnType<typeof combinedReducer>;
 export type AppDispatch = typeof store.dispatch;
